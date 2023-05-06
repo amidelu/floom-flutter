@@ -1,7 +1,12 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:floom/src/variables.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gradient_colors/flutter_gradient_colors.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:jitsi_meet_wrapper/jitsi_meet_wrapper.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 
 class JoinMeeting extends StatefulWidget {
@@ -12,11 +17,53 @@ class JoinMeeting extends StatefulWidget {
 }
 
 class _JoinMeetingState extends State<JoinMeeting> {
+  String _username = '';
   final _nameController = TextEditingController();
+  final _roomController = TextEditingController();
+
   bool? _isVideoMuted = true;
   bool? _isAudioMuted = true;
 
-  joinMeeting() {}
+  joinMeeting() async {
+    try {
+      Map<FeatureFlag, bool> featureFlags = {
+        FeatureFlag.isWelcomePageEnabled: false
+      };
+
+      if (Platform.isAndroid) {
+        featureFlags[FeatureFlag.isCallIntegrationEnabled] = false;
+      } else if (Platform.isIOS) {
+        featureFlags[FeatureFlag.isPipEnabled] = false;
+      }
+
+      var options = JitsiMeetingOptions(
+          roomNameOrUrl: _roomController.text,
+          userDisplayName:
+              _nameController.text == '' ? _username : _nameController.text,
+          isVideoMuted: _isVideoMuted,
+          isAudioMuted: _isAudioMuted,
+          featureFlags: featureFlags);
+
+      await JitsiMeetWrapper.joinMeeting(options: options);
+    } catch (e) {
+      debugPrint('Join Meeting Error $e');
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getUserData();
+  }
+
+  getUserData() async {
+    DocumentSnapshot userDoc =
+        await userCollection.doc(FirebaseAuth.instance.currentUser?.uid).get();
+
+    setState(() {
+      _username = userDoc.data()['username'];
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +83,7 @@ class _JoinMeetingState extends State<JoinMeeting> {
               height: 20.h,
             ),
             PinCodeTextField(
+                controller: _roomController,
                 appContext: context,
                 length: 6,
                 autoDisposeControllers: false,
