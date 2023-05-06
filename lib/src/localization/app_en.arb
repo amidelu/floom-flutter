@@ -1,0 +1,6 @@
+{
+  "appTitle": "floom",
+  "@appTitle": {
+    "description": "The title of the application"
+  }
+}
